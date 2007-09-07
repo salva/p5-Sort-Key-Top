@@ -1,6 +1,6 @@
 # -*- Mode: CPerl -*-
 
-use Test::More tests => 202;
+use Test::More tests => 783;
 
 use Sort::Key::Top qw(nkeytop top rnkeytop topsort
                       nkeytopsort rnkeytopsort
@@ -15,8 +15,10 @@ is_deeply(\@top, [1, 2, 1, 0, -2], "nkeytop 1");
 
 
 my @a = qw(cat fish bird leon penguin horse rat elephant squirrel dog);
-@top = top 5 => @a;
-is_deeply(\@top, [qw(cat fish bird elephant dog)], "top 1");
+
+is_deeply([top 5 => @a], [qw(cat fish bird elephant dog)], "top 1");
+
+is_deeply([top 30 => @a], [@a], "top 1.1");
 
 is_deeply([rnkeytop { length $_ } 3 => qw(a ab aa aac b t uu g h)], [qw(ab aa aac)], "rnkeytop 1");
 
@@ -26,24 +28,84 @@ is_deeply([topsort 5 => qw(a b ab t uu g h aa aac)], [qw(a aa aac ab b)], "topso
 
 is_deeply([rnkeytopsort { length $_ } 3 => qw(a ab aa aac b t uu g h)], [qw(aac ab aa)], "rnkeytopsort 1");
 
+is(scalar(top 5 => @a), q(dog), "scalar top 1");
+
+is(scalar(top 30 => @a), undef, "top 1.1");
+
+is(scalar(rnkeytop { length $_ } 3 => qw(a ab aa aac b t uu g h)), q(aac), "scalar rnkeytop 1");
+
+is(scalar(top 5 => qw(a b ab t uu g h aa aac)), q(aac), "scalar top 2");
+
+is(scalar(topsort 5 => qw(a b ab t uu g h aa aac)), q(b), "scalar topsort 1");
+
+is(scalar(rnkeytopsort { length $_ } 3 => qw(a ab aa aac b t uu g h)), q(aa), "scalar rnkeytopsort 1");
+
+
 my @data = map { join ('', map { ('a'..'f')[rand 6] } 0..(3 + rand  6)) } 0..1000;
 
-for my $n (-1, 0, 1, 2, 3, 4, 10, 16, 20, 50, 100, 200, 500, 900, 990, 996, 997, 998, 999,
-           1000, 1001, 1002, 1010, 1020, 2000, 4000, 100000, 2000000) {
+for my $n (0, 1, 2, 3, 4, 10, 16, 20, 50, 100, 200, 500, 900, 990,
+           996, 997, 998, 999, 1000, 1001, 1002, 1003, 1010, 1020, 2000, 4000,
+           100000, 2000000, -1, -2, -3, -4, -10, -16, -20, -50, -100, -200, -500,
+           -900, -990, -996, -997, -998, -999, -1000, -1001, -1002, -1003, -1010,
+           -1020, -2000, -4000, -100000, -2000000 ) {
 
-  my $max = @data > $n ? $n - 1 : $#data;
+  my ($min, $max);
 
-  is_deeply([topsort $n => @data], [(sort @data)[0..$max]], "topsort ($n)");
+
+
+  if ($n >= 0) {
+    $max = @data > $n ? $n - 1 : $#data;
+    $min = 0;
+  }
+  else {
+    if (@data > -$n) {
+      $min = @data + $n;
+      $max = $#data;
+    }
+    else {
+      $min = 0;
+      $max = $#data;
+    }
+  }
+
+
+
+  is_deeply([topsort $n => @data], [(sort @data)[$min..$max]], "topsort ($n)");
+
   is_deeply([nkeytopsort { length $_ } $n => @data],
-            [ (sort { length $a <=> length $b } @data)[0..$max]], "nkeytopsort ($n)");
+            [ (sort { length $a <=> length $b } @data)[$min..$max]], "nkeytopsort ($n)");
   is_deeply([rnkeytopsort { length $_ } $n => @data],
-            [ (sort { length $b <=> length $a } @data)[0..$max]], "rnkeytopsort ($n)");
+            [ (sort { length $b <=> length $a } @data)[$min..$max]], "rnkeytopsort ($n)");
   is_deeply([ikeytopsort { length $_ } $n => @data],
-            [ (sort { length $a <=> length $b } @data)[0..$max]], "ikeytopsort ($n)");
+            [ (sort { length $a <=> length $b } @data)[$min..$max]], "ikeytopsort ($n)");
   is_deeply([rikeytopsort { length $_ } $n => @data],
-            [ (sort { length $b <=> length $a } @data)[0..$max]], "rikeytopsort ($n)");
+            [ (sort { length $b <=> length $a } @data)[$min..$max]], "rikeytopsort ($n)");
   is_deeply([ukeytopsort { length $_ } $n => @data],
-            [ (sort { length $a <=> length $b } @data)[0..$max]], "ukeytopsort ($n)");
+            [ (sort { length $a <=> length $b } @data)[$min..$max]], "ukeytopsort ($n)");
   is_deeply([rukeytopsort { length $_ } $n => @data],
-            [ (sort { length $b <=> length $a } @data)[0..$max]], "rukeytopsort ($n)");
+            [ (sort { length $b <=> length $a } @data)[$min..$max]], "rukeytopsort ($n)");
+
+  my $n1 = $n > 0 ? $n - 1 : $n < 0 ? $n : @data + 10;
+
+
+  is(scalar(topsort $n => @data), (sort @data)[$n1], "scalar topsort ($n)");
+
+  is(scalar(nkeytopsort { length $_ } $n => @data),
+     (sort { length $a <=> length $b } @data)[$n1], "scalar nkeytopsort ($n)");
+
+  is(scalar(rnkeytopsort { length $_ } $n => @data),
+     (sort { length $b <=> length $a } @data)[$n1], "scalar rnkeytopsort ($n)");
+
+  is(scalar(ikeytopsort { length $_ } $n => @data),
+     (sort { length $a <=> length $b } @data)[$n1], "scalar ikeytopsort ($n)");
+
+  is(scalar(rikeytopsort { length $_ } $n => @data),
+     (sort { length $b <=> length $a } @data)[$n1], "scalar rikeytopsort ($n)");
+
+  is(scalar(ukeytopsort { length $_ } $n => @data),
+     (sort { length $a <=> length $b } @data)[$n1], "scalar ukeytopsort ($n)");
+
+  is(scalar(rukeytopsort { length $_ } $n => @data),
+     (sort { length $b <=> length $a } @data)[$n1], "scalar rukeytopsort ($n)");
+
 }

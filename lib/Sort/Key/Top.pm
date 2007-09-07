@@ -1,6 +1,6 @@
 package Sort::Key::Top;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use strict;
 use warnings;
@@ -71,6 +71,10 @@ Sort::Key::Top - select and sort top n elements
   @top = nkeytop { abs $_ } 5 => 1, 2, 7, 5, 5, 1, 78, 0, -2, -8, 2;
          # ==> @top = (1, 2, 1, 0, -2)
 
+  # select 5 first numbers by absolute value and sort accordingly:
+  @top = nkeytopsort { abs $_ } 5 => 1, 2, 7, 5, 5, 1, 78, 0, -2, -8, 2;
+         # ==> @top = (0, 1, 1, 2, -2)
+
   # select 5 first words by lexicographic order:
   @a = qw(cat fish bird leon penguin horse rat elephant squirrel dog);
   @top = top 5 => @a;
@@ -85,14 +89,47 @@ They are all variations around
 
   keytopsort { CALC_KEY($_) } $n => @data;
 
-This function calculates the ordering key for every element in
-C<@data> using the expression inside the block. Then it selects and
-orders the C<$n> elements with the lower keys when compared
-lexicographically.
+In array context, this function calculates the ordering key for every
+element in C<@data> using the expression inside the block. Then it
+selects and orders the C<$n> elements with the lower keys when
+compared lexicographically.
 
 It is equivalent to the pure Perl expression:
 
   (sort { CALC_KEY($a) cmp CALC_KEY($b) } @data)[0 .. $n-1];
+
+If $n is negative, the last C<$n> elements from the bottom are selected:
+
+  topsort 3 => qw(foo doom me bar doz hello);
+       # ==> ('bar', 'doz', 'doom')
+
+  topsort -3 => qw(foo doom me bar doz hello);
+       # ==> ('foo', 'hello', 'me')
+
+  top 3 => qw(foo doom me bar doz hello);
+       # ==> ('doom', 'bar', 'doz')
+
+  top -3 => qw(foo doom me bar doz hello);
+       # ==> ('foo', 'me', 'hello')
+
+In scalar context, the value returned by the functions on this module
+is the cutoff value allowing to select the Nth element from the
+array. For instance:
+
+  $n = 5;
+  scalar(topsort 5 => @data) eq (sort @data)[4]    # true
+
+  $n == -5;
+  scalar(topsort -5 => @data) eq (sort @data)[-5]  # true
+
+Note that on scalar context, the C<sort> variations (see below) are
+usually the right choice:
+
+  scalar topsort 3 => qw(me foo doz doom me bar hello); # ==> 'doz'
+
+  scalar top 3 => qw(me foo doz doom me bar hello); # ==> 'bar'
+
+
 
 Variations allow to:
 
@@ -198,7 +235,8 @@ L<http://en.wikipedia.org/wiki/Selection_algorithm>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2006 by Salvador FandiE<ntilde>o
+Copyright (C) 2006-2007 by Salvador FandiE<ntilde>o
+(sfandino@yahoo.com).
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,

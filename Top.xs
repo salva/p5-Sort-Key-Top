@@ -12,66 +12,72 @@
 #include "sort.h"
 #endif
 
+#define INSERTION_CUTOFF 6
+
 static I32
 ix_sv_cmp(pTHX_ SV **a, SV **b) {
-    return sv_cmp(*a, *b);
+    int r = sv_cmp(*a, *b);
+    return r ? r : a < b ? -1 : 1;
 }
 
 static I32
 ix_rsv_cmp(pTHX_ SV **a, SV **b) {
-    return sv_cmp(*b, *a);
+    int r = sv_cmp(*b, *a);
+    return r ? r : a < b ? -1 : 1;
 }
 
 static I32
 ix_lsv_cmp(pTHX_ SV **a, SV **b) {
-    return sv_cmp_locale(*a, *b);
+    int r = sv_cmp_locale(*a, *b);
+    return r ? r : a < b ? -1 : 1;
 }
 
 static I32
 ix_rlsv_cmp(pTHX_ SV **a, SV **b) {
-    return sv_cmp_locale(*b, *a);
+    int r = sv_cmp_locale(*b, *a);
+    return r ? r : a < b ? -1 : 1;
 }
 
 static I32
 ix_n_cmp(pTHX_ NV *a, NV *b) {
     NV nv1 = *a;
     NV nv2 = *b;
-    return nv1 < nv2 ? -1 : nv1 > nv2 ? 1 : 0;
+    return nv1 < nv2 ? -1 : nv1 > nv2 ? 1 : a < b ? -1 : 1;
 }
 
 static I32
 ix_rn_cmp(pTHX_ NV *a, NV *b) {
     NV nv1 = *b;
     NV nv2 = *a;
-    return nv1 < nv2 ? -1 : nv1 > nv2 ? 1 : 0;
+    return nv1 < nv2 ? -1 : nv1 > nv2 ? 1 : a < b ? -1 : 1;
 }
 
 static I32
 ix_i_cmp(pTHX_ IV *a, IV *b) {
     IV iv1 = *a;
     IV iv2 = *b;
-    return iv1 < iv2 ? -1 : iv1 > iv2 ? 1 : 0;
+    return iv1 < iv2 ? -1 : iv1 > iv2 ? 1 : a < b ? -1 : 1;
 }
 
 static I32
 ix_ri_cmp(pTHX_ IV *a, IV *b) {
     IV iv1 = *b;
     IV iv2 = *a;
-    return iv1 < iv2 ? -1 : iv1 > iv2 ? 1 : 0;
+    return iv1 < iv2 ? -1 : iv1 > iv2 ? 1 : a < b ? -1 : 1;
 }
 
 static I32
 ix_u_cmp(pTHX_ UV *a, UV *b) {
     UV uv1 = *a;
     UV uv2 = *b;
-    return uv1 < uv2 ? -1 : uv1 > uv2 ? 1 : 0;
+    return uv1 < uv2 ? -1 : uv1 > uv2 ? 1 : a < b ? -1 : 1;
 }
 
 static I32
 ix_ru_cmp(pTHX_ UV *a, UV *b) {
     UV uv1 = *b;
     UV uv2 = *a;
-    return uv1 < uv2 ? -1 : uv1 > uv2 ? 1 : 0;
+    return uv1 < uv2 ? -1 : uv1 > uv2 ? 1 : a < b ? -1 : 1;
 }
 
 static void *v_alloc(pTHX_ IV n, IV lsize) {
@@ -88,33 +94,33 @@ static void *av_alloc(pTHX_ IV n, IV lsize) {
 }
 
 static void i_store(pTHX_ SV *v, void *to) {
-    *((IV*)to)=SvIV(v);
+    *((IV*)to) = SvIV(v);
 }
 
 static void u_store(pTHX_ SV *v, void *to) {
-    *((UV*)to)=SvUV(v);
+    *((UV*)to) = SvUV(v);
 }
 
 static void n_store(pTHX_ SV *v, void *to) {
-    *((NV*)to)=SvNV(v);
+    *((NV*)to) = SvNV(v);
 }
 
 static void sv_store(pTHX_ SV *v, void *to) {
-    *((SV**)to)=SvREFCNT_inc(v);
+    *((SV**)to) = SvREFCNT_inc(v);
 }
 
 #define lsizeof(A) (ilog2(sizeof(A)))
 
 static int ilog2(int i) {
-    if (i>256) croak("internal error");
-    if (i>128) return 8;
-    if (i>64) return 7;
-    if (i>32) return 6;
-    if (i>16) return 5;
-    if (i>8) return 4;
-    if (i>4) return 3;
-    if (i>2) return 2;
-    if (i>1) return 1;
+    if (i > 256) croak("internal error");
+    if (i > 128) return 8;
+    if (i >  64) return 7;
+    if (i >  32) return 6;
+    if (i >  16) return 5;
+    if (i >   8) return 4;
+    if (i >   4) return 3;
+    if (i >   2) return 2;
+    if (i >   1) return 1;
     return 0;
 }
 
@@ -123,21 +129,41 @@ typedef void (*STORE_t)(pTHX_ SV*, void*);
 
 I32
 _keytop(pTHX_ IV type, SV *keygen, IV top, int sort, I32 offset, IV items, I32 ax) {
-    if (top < 0) top = 0;
-    if (top > items) top = items;
-    if (top < 2) sort = 0;
+    int warray = (GIMME_V == G_ARRAY);
+    int deep = (sort && !warray) ? 1 : 0;
+    int dir = 1;
+
+    if (top == 0)
+        return 0;
+
+    if (top < 0) {
+        dir = -1;
+        top = -top;
+    }
+
+    if (top > items) {
+        if (warray)
+            top = items;
+        else
+            return 0;
+    }
+
+    if (items == 1) {
+        ST(0) = ST(offset);
+        return 1;
+    }
 
     if (top < items || sort) {
         dSP;
-        I32 left, right;
         void *keys;
         void **ixkeys;
         SV *old_defsv;
         U32 lsize;
         COMPARE_t cmp;
         STORE_t store;
+        int already_sorted = 0;
 
-        switch(type) {
+        switch (type) {
         case 0:
             cmp = (COMPARE_t)&ix_sv_cmp;
             lsize = lsizeof(SV*);
@@ -242,98 +268,178 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int sort, I32 offset, IV items, I32 a
             }
         }
 
-        if (top < items) {
-            left = 0;
-            right = items - 1;
-            while (right > left) {
-                I32 pivot = (left + right) >> 1;
-                void *pivot_value = ixkeys[pivot];
-                I32 i;
+        if (top == 1) {
+            I32 min = 0;
+            I32 i;
+            for (i = 1; i < items; i++) {
+                if (cmp(aTHX_ ixkeys[min], ixkeys[i]) == dir)
+                    min = i;
+            }
+            ST(0) = ST(offset + min);
+            return 1;
+        }
+        
+        if (top < items || deep) {
 
-                SV *out = sv_newmortal();
-                /*
-                  sv_catpvf(out, "left: %d, right: %d, pivot: %d, pivot_value: %s =>", left, right, pivot, SvPV_nolen(*(SV**)pivot_value));
-                  for (i = 0; i< items; i++) {
-                  sv_catpvf(out, " %s", SvPV_nolen(*(SV**)(ixkeys[i])));
-                  }
-                  fprintf(stderr, "%s\n", SvPV_nolen(out));
-                */
-                
-                ixkeys[pivot] = ixkeys[right];
-                for (pivot = i = left; i < right; i++) {
-                    int r = cmp(aTHX_ ixkeys[i], pivot_value);
-                    if (r < 0 || ((r == 0) && (ixkeys[i] < pivot_value))) {
-                        void *swap = ixkeys[i];
-                        ixkeys[i] = ixkeys[pivot];
-                        ixkeys[pivot] = swap;
-                        pivot++;
+            if (top <= INSERTION_CUTOFF) {
+                I32 n, i, j;
+                void *current;
+
+                for (n = i = 1; i < items; i++) {
+                    current = ixkeys[i];
+                    for (j = n; j; j--) {
+                        /*
+                          printf ("n: %d, i: %d, j: %d, cmp: %d, dir: %d, key: %s, current: %s\n",
+                          n, i, j,
+                          cmp(aTHX_ ixkeys[j - 1], current), dir,
+                          SvPV_nolen(*((SV**)(ixkeys[j - 1]))),
+                          SvPV_nolen(*((SV**)current)) );
+                          {
+                          int k;
+                          for (k = 0; k < items; k++) {
+                          printf("%s ", (k == j ? "*" : SvPV_nolen(*((SV**)(ixkeys[k])))));
+                          }
+                          printf("\n"); fflush(stdout);
+                          
+                          }
+                        */
+                        if (cmp(aTHX_ ixkeys[j - 1], current) != dir)
+                            break;
+
+                        if (j < top)
+                            ixkeys[j] = ixkeys[j - 1];
+                    }
+                    if (j < top) {
+                        ixkeys[j] = current;
+                        if (n < top)
+                            n++;
                     }
                 }
-                ixkeys[right] = ixkeys[pivot];
-                ixkeys[pivot] = pivot_value;
 
-                if (pivot >= top) {
-                    /* fprintf(stderr, "%d >= %d\n", pivot, top); */
-                    right = pivot - 1;
+                /* if (dir < 0) {
+                    I32 i, j;
+                    for (i = 0, j = top - 1; i < j; i++, j--) {
+                        void *swap = ixkeys[i];
+                        ixkeys[i] = ixkeys[j];
+                        ixkeys[j] = swap;
+                    }
                 }
-                if (pivot <= top) {
-                    /* fprintf(stderr, "%d <= %d\n", pivot, top); */
-                    left = pivot + 1;
-                }
+                */
+
+                if (dir == 1)
+                    already_sorted = 1;
+                
             }
-            {
-                I32 i;
-                unsigned char *bitmap;
-                Newxz(bitmap, (items / 8) + 1, unsigned char);
-                SAVEFREEPV(bitmap);
-                for (i = 0; i < top; i++) {
-                    I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
-                    bitmap[j / 8] |= (1 << (j & 7));
-                }
-                if (sort) {
-                    I32 to;
-                    for (to = i = 0; to < top; i++) {
-                        if (bitmap[i / 8] & (1 << (i & 7))) {
-                            /* fprintf(stderr, "to: %d => i: %d\n", to, i); */
-                            ixkeys[to++] = ((char *)keys) + (i << lsize);
+            else {
+                I32 left = 0;
+                I32 right = items - 1;
+
+                while (1) {
+                    I32 pivot = (left + right) >> 1;
+                    void *pivot_value = ixkeys[pivot];
+                    I32 i;
+
+                    SV *out = sv_newmortal();
+                    /*
+                      sv_catpvf(out, "left: %d, right: %d, pivot: %d, pivot_value: %s =>", left, right, pivot, SvPV_nolen(*(SV**)pivot_value));
+                      for (i = 0; i< items; i++) {
+                      sv_catpvf(out, " %s", SvPV_nolen(*(SV**)(ixkeys[i])));
+                      }
+                      fprintf(stderr, "%s\n", SvPV_nolen(out));
+                    */
+                
+                    ixkeys[pivot] = ixkeys[right];
+                    for (pivot = i = left; i < right; i++) {
+                        if (cmp(aTHX_ ixkeys[i], pivot_value) != dir) {
+                            void *swap = ixkeys[i];
+                            ixkeys[i] = ixkeys[pivot];
+                            ixkeys[pivot] = swap;
+                            pivot++;
+                        }
+                    }
+                    ixkeys[right] = ixkeys[pivot];
+                    ixkeys[pivot] = pivot_value;
+                    if (deep) {
+                        if (pivot >= top)
+                            right = pivot - 1;
+                        else {
+                            if (pivot == top - 1)
+                                break;
+                            left = pivot + 1;
+                        }
+                    }
+                    else {
+                        if (pivot >= top) {
+                            /* fprintf(stderr, "%d >= %d\n", pivot, top); */
+                            right = pivot - 1;
+                            if (right < top)
+                                break;
+                        }
+                        if (pivot <= top) {
+                            /* fprintf(stderr, "%d <= %d\n", pivot, top); */
+                            left = pivot + 1;
+                            if (left >= top)
+                                break;
                         }
                     }
                 }
-                else {
-                    I32 to;
+            }
+            if (!sort) {
+                if (warray) {
+                    I32 to, i;
+                    unsigned char *bitmap;
+                    Newxz(bitmap, (items / 8) + 1, unsigned char);
+                    SAVEFREEPV(bitmap);
+                    for (i = 0; i < top; i++) {
+                        I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
+                        bitmap[j / 8] |= (1 << (j & 7));
+                    }
                     for (to = i = 0; to < top; i++) {
                         if (bitmap[i / 8] & (1 << (i & 7))) {
                             /* fprintf(stderr, "to: %d => i: %d\n", to, i); */
                             ST(to++) = ST(i+offset);
                         }
                     }
+                    return top;
+                }
+                else {
+                    I32 last, i;
+                    for (i = 0, last = 0; i < top; i++) {
+                        I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
+                        if (j > last)
+                            last = j;
+                    }
+                    ST(0) = ST(offset + last);
+                    return 1;
                 }
             }
         }
+
         if (sort) {
-            I32 i;
-            /*
-              for(i = 0; i < top; i++) {
-              I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
-              fprintf(stderr, "i: %d => j: %d\n", i, j);
-              }
-            */
-            sortsv((SV**)ixkeys, top, (SVCOMPARE_t)cmp);
-            for(i = 0; i < top; i++) {
-                I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
-                /* fprintf(stderr, "i: %d => j: %d\n", i, j); */
-                ixkeys[i] = ST(j + offset);
+            if (warray) {
+                I32 i;
+                if (!already_sorted)
+                    sortsv((SV**)ixkeys, top, (SVCOMPARE_t)cmp);
+                for(i = 0; i < top; i++) {
+                    I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
+                    /* fprintf(stderr, "i: %d => j: %d\n", i, j); */
+                    ixkeys[i] = ST(j + offset);
+                }
+                for(i = 0; i < top; i++) {
+                    ST(i) = (SV*)ixkeys[i];
+                }
             }
-            for(i = 0; i < top; i++) {
-                ST(i) = (SV*)ixkeys[i];
+            else {
+                I32 j = ( ((char*)(ixkeys[top - 1])) - ((char*)keys) ) >> lsize;
+                ST(0) = ST(offset + j);
+                return 1;
             }
         }
         return top;
-
     }
     else {
         I32 i;
-        for (i = 0; i < items; i++)
+        for (i = 0; i < top; i++)
             ST(i) = ST(i + offset);
         return items;
     }

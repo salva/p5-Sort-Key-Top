@@ -1,5 +1,13 @@
 Revision history for Perl extension Sort::Key::Top.
 
+0.02  Sep 7, 2007
+        - optimize for n = 1
+        - use insertion algorithm when n is small (<= 6)
+        - optimize search algorithm
+        - now functions return cutoff element on scalar context
+        - negative n is handled as bottom
+        - make algorithm stable (there was a bug before).
+
 0.01  Sun Aug 27 17:58:17 2006
 	- original version; created by h2xs 1.23 with options
 		-An Sort::Key::Top
