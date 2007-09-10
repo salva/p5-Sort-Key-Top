@@ -1,5 +1,8 @@
 # -*- Mode: CPerl -*-
 
+use strict;
+use warnings;
+
 use Test::More tests => 783;
 
 use Sort::Key::Top qw(nkeytop top rnkeytop topsort
@@ -69,43 +72,52 @@ for my $n (0, 1, 2, 3, 4, 10, 16, 20, 50, 100, 200, 500, 900, 990,
   }
 
 
+  # on 5.6.x perls, sort is not stable, so we have to stabilize it ourselves:
+  my @ixs = sort { length($data[$a]) <=> length($data[$b]) or $a <=> $b } 0 .. $#data;
+  my @sorted = @data[@ixs];
+
+  my @rixs = sort { length($data[$b]) <=> length($data[$a]) or $a <=> $b } 0 .. $#data;
+  my @rsorted = @data[@rixs];
 
   is_deeply([topsort $n => @data], [(sort @data)[$min..$max]], "topsort ($n)");
 
   is_deeply([nkeytopsort { length $_ } $n => @data],
-            [ (sort { length $a <=> length $b } @data)[$min..$max]], "nkeytopsort ($n)");
+            [ (@sorted)[$min..$max]], "nkeytopsort ($n)");
   is_deeply([rnkeytopsort { length $_ } $n => @data],
-            [ (sort { length $b <=> length $a } @data)[$min..$max]], "rnkeytopsort ($n)");
+            [ (@rsorted)[$min..$max]], "rnkeytopsort ($n)");
   is_deeply([ikeytopsort { length $_ } $n => @data],
-            [ (sort { length $a <=> length $b } @data)[$min..$max]], "ikeytopsort ($n)");
+            [ (@sorted)[$min..$max]], "ikeytopsort ($n)");
   is_deeply([rikeytopsort { length $_ } $n => @data],
-            [ (sort { length $b <=> length $a } @data)[$min..$max]], "rikeytopsort ($n)");
+            [ (@rsorted)[$min..$max]], "rikeytopsort ($n)");
   is_deeply([ukeytopsort { length $_ } $n => @data],
-            [ (sort { length $a <=> length $b } @data)[$min..$max]], "ukeytopsort ($n)");
+            [ (@sorted)[$min..$max]], "ukeytopsort ($n)");
   is_deeply([rukeytopsort { length $_ } $n => @data],
-            [ (sort { length $b <=> length $a } @data)[$min..$max]], "rukeytopsort ($n)");
+            [ (@rsorted)[$min..$max]], "rukeytopsort ($n)");
 
   my $n1 = $n > 0 ? $n - 1 : $n < 0 ? $n : @data + 10;
 
+  my $vn = (!$n || abs($n) > @data) ? undef : $sorted[$n > 0 ? $n - 1 : $n];
+  my $rvn = (!$n || abs($n) > @data) ? undef : $rsorted[$n > 0 ? $n - 1 : $n];
+    
 
   is(scalar(topsort $n => @data), (sort @data)[$n1], "scalar topsort ($n)");
 
   is(scalar(nkeytopsort { length $_ } $n => @data),
-     (sort { length $a <=> length $b } @data)[$n1], "scalar nkeytopsort ($n)");
+     $vn, "scalar nkeytopsort ($n)");
 
   is(scalar(rnkeytopsort { length $_ } $n => @data),
-     (sort { length $b <=> length $a } @data)[$n1], "scalar rnkeytopsort ($n)");
+     $rvn, "scalar rnkeytopsort ($n)");
 
   is(scalar(ikeytopsort { length $_ } $n => @data),
-     (sort { length $a <=> length $b } @data)[$n1], "scalar ikeytopsort ($n)");
+     $vn, "scalar ikeytopsort ($n)");
 
   is(scalar(rikeytopsort { length $_ } $n => @data),
-     (sort { length $b <=> length $a } @data)[$n1], "scalar rikeytopsort ($n)");
+     $rvn, "scalar rikeytopsort ($n)");
 
   is(scalar(ukeytopsort { length $_ } $n => @data),
-     (sort { length $a <=> length $b } @data)[$n1], "scalar ukeytopsort ($n)");
+     $vn, "scalar ukeytopsort ($n)");
 
   is(scalar(rukeytopsort { length $_ } $n => @data),
-     (sort { length $b <=> length $a } @data)[$n1], "scalar rukeytopsort ($n)");
+     $rvn, "scalar rukeytopsort ($n)");
 
 }

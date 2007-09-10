@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Sort-Key-Top
-version:             0.02
+version:             0.03
 abstract:            select and sort top n elements
 license:             ~
 generated_by:        ExtUtils::MakeMaker version 6.32
