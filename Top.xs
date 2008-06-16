@@ -128,8 +128,7 @@ typedef I32 (*COMPARE_t)(pTHX_ void*, void*);
 typedef void (*STORE_t)(pTHX_ SV*, void*);
 
 I32
-_keytop(pTHX_ IV type, SV *keygen, IV top, int sort, I32 offset, IV items, I32 ax) {
-    int warray = (GIMME_V == G_ARRAY);
+_keytop(pTHX_ IV type, SV *keygen, IV top, int sort, I32 offset, IV items, I32 ax, I32 warray) {
     int deep = (sort && !warray) ? 1 : 0;
     int dir = 1;
 
@@ -463,7 +462,7 @@ ALIAS:
         rikeytop = 131
         rukeytop = 132
 PPCODE:
-        XSRETURN(_keytop(aTHX_ ix, keygen, top, 0, 2, items-2, ax));
+        XSRETURN(_keytop(aTHX_ ix, keygen, top, 0, 2, items-2, ax, (GIMME_V == G_ARRAY)));
 
 void
 top(IV top, ...)
@@ -479,7 +478,7 @@ ALIAS:
         ritop = 131
         rutop = 132
 PPCODE:
-        XSRETURN(_keytop(aTHX_ ix, 0, top, 0, 1, items-1, ax));
+        XSRETURN(_keytop(aTHX_ ix, 0, top, 0, 1, items-1, ax, (GIMME_V == G_ARRAY)));
 
 void
 keytopsort(SV *keygen, IV top, ...)
@@ -495,7 +494,7 @@ ALIAS:
         rikeytopsort = 131
         rukeytopsort = 132
 PPCODE:
-        XSRETURN(_keytop(aTHX_ ix, keygen, top, 1, 2, items-2, ax));
+        XSRETURN(_keytop(aTHX_ ix, keygen, top, 1, 2, items-2, ax, (GIMME_V == G_ARRAY)));
 
 void
 topsort(IV top, ...)
@@ -511,5 +510,100 @@ ALIAS:
         ritopsort = 131
         rutopsort = 132
 PPCODE:
-        XSRETURN(_keytop(aTHX_ ix, 0, top, 1, 1, items-1, ax));
+        XSRETURN(_keytop(aTHX_ ix, 0, top, 1, 1, items-1, ax, (GIMME_V == G_ARRAY)));
 
+void
+keyhead(SV *keygen, ...)
+PROTOTYPE: &@
+ALIAS:
+        lkeyhead = 1
+        nkeyhead = 2
+        ikeyhead = 3
+        ukeyhead = 4
+        rkeyhead = 128
+        rlkeyhead = 129
+        rnkeyhead = 130
+        rikeyhead = 131
+        rukeyhead = 132
+PPCODE:
+        XSRETURN(_keytop(aTHX_ ix, keygen, 1, 0, 1, items-1, ax, 0));
+
+void
+keytail(SV *keygen, ...)
+PROTOTYPE: &@
+ALIAS:
+        lkeytail = 1
+        nkeytail = 2
+        ikeytail = 3
+        ukeytail = 4
+        rkeytail = 128
+        rlkeytail = 129
+        rnkeytail = 130
+        rikeytail = 131
+        rukeytail = 132
+PPCODE:
+        XSRETURN(_keytop(aTHX_ ix, keygen, -1, 0, 1, items-1, ax, 0));
+
+void
+head(...)
+PROTOTYPE: @
+ALIAS:
+        lhead = 1
+        nhead = 2
+        ihead = 3
+        uhead = 4
+        rhead = 128
+        rlhead = 129
+        rnhead = 130
+        rihead = 131
+        ruhead = 132
+PPCODE:
+        XSRETURN(_keytop(aTHX_ ix, 0, 1, 0, 0, items, ax, 0));
+
+void
+tail(...)
+PROTOTYPE: @
+ALIAS:
+        ltail = 1
+        ntail = 2
+        itail = 3
+        utail = 4
+        rtail = 128
+        rltail = 129
+        rntail = 130
+        ritail = 131
+        rutail = 132
+PPCODE:
+        XSRETURN(_keytop(aTHX_ ix, 0, -1, 0, 0, items, ax, 0));
+
+void
+keyatpos(SV *keygen, IV n, ...)
+PROTOTYPE: &@
+ALIAS:
+        lkeyatpos = 1
+        nkeyatpos = 2
+        ikeyatpos = 3
+        ukeyatpos = 4
+        rkeyatpos = 128
+        rlkeyatpos = 129
+        rnkeyatpos = 130
+        rikeyatpos = 131
+        rukeyatpos = 132
+PPCODE:
+        XSRETURN(_keytop(aTHX_ ix, keygen, (n < 0 ? n : n + 1), 1, 2, items-2, ax, 0));
+
+void
+atpos(IV n, ...)
+PROTOTYPE: @
+ALIAS:
+        latpos = 1
+        natpos = 2
+        iatpos = 3
+        uatpos = 4
+        ratpos = 128
+        rlatpos = 129
+        rnatpos = 130
+        riatpos = 131
+        ruatpos = 132
+PPCODE:
+        XSRETURN(_keytop(aTHX_ ix, 0, (n < 0 ? n : n + 1), 1, 1, items-1, ax, 0));

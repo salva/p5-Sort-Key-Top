@@ -1,6 +1,6 @@
 package Sort::Key::Top;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use strict;
 use warnings;
@@ -47,10 +47,68 @@ our @EXPORT_OK = qw( top
                      rlkeytopsort
                      rnkeytopsort
                      rikeytopsort
-                     rukeytopsort );
-
-
-
+                     rukeytopsort
+                     atpos
+                     latpos
+                     natpos
+                     iatpos
+                     uatpos
+                     ratpos
+                     rlatpos
+                     rnatpos
+                     riatpos
+                     ruatpos
+                     keyatpos
+                     lkeyatpos
+                     nkeyatpos
+                     ikeyatpos
+                     ukeyatpos
+                     rkeyatpos
+                     rlkeyatpos
+                     rnkeyatpos
+                     rikeyatpos
+                     rukeyatpos
+                     head
+                     lhead
+                     nhead
+                     ihead
+                     uhead
+                     rhead
+                     rlhead
+                     rnhead
+                     rihead
+                     ruhead
+                     keyhead
+                     lkeyhead
+                     nkeyhead
+                     ikeyhead
+                     ukeyhead
+                     rkeyhead
+                     rlkeyhead
+                     rnkeyhead
+                     rikeyhead
+                     rukeyhead
+                     tail
+                     ltail
+                     ntail
+                     itail
+                     utail
+                     rtail
+                     rltail
+                     rntail
+                     ritail
+                     rutail
+                     keytail
+                     lkeytail
+                     nkeytail
+                     ikeytail
+                     ukeytail
+                     rkeytail
+                     rlkeytail
+                     rnkeytail
+                     rikeytail
+                     rukeytail
+ );
 
 
 require XSLoader;
@@ -113,13 +171,13 @@ If $n is negative, the last C<$n> elements from the bottom are selected:
        # ==> ('foo', 'me', 'hello')
 
 In scalar context, the value returned by the functions on this module
-is the cutoff value allowing to select the Nth element from the
+is the cutoff value allowing to select nth element from the
 array. For instance:
 
-  $n = 5;
+  # n = 5;
   scalar(topsort 5 => @data) eq (sort @data)[4]    # true
 
-  $n == -5;
+  # n = -5;
   scalar(topsort -5 => @data) eq (sort @data)[-5]  # true
 
 Note that on scalar context, the C<sort> variations (see below) are
@@ -129,7 +187,9 @@ usually the right choice:
 
   scalar top 3 => qw(me foo doz doom me bar hello); # ==> 'bar'
 
-
+Note also, that the index is 1-based (it starts at one instead of at
+zero). The C<atpos> set of functions explained below do the same and
+are 0-based.
 
 Variations allow to:
 
@@ -138,15 +198,13 @@ Variations allow to:
 =item - use the own values as the ordering keys
 
   topsort 5 => qw(a b ab t uu g h aa aac);
-
-     ==> a aa aac ab b
+     # ==> a aa aac ab b
 
 
 =item - return the selected values in the original order
 
   top 5 => qw(a b ab t uu g h aa aac);
-
-     ==> a b ab aa aac
+     # ==> a b ab aa aac
 
 
 =item - use a different ordering
@@ -155,13 +213,10 @@ For instance comparing the keys as numbers, using the locale
 configuration or in reverse order:
 
   rnkeytop { length $_ } 3 => qw(a ab aa aac b t uu g h);
-
-     ==> ab aa aac
+     # ==> ab aa aac
 
   rnkeytopsort { length $_ } 3 => qw(a ab aa aac b t uu g h);
-
-     ==> aac ab aa
-
+     # ==> aac ab aa
 
 A prefix is used to indicate the required ordering:
 
@@ -209,7 +264,34 @@ numerical descending order but converting the keys to unsigned integers first
 
 =back
 
+=item - select the head element from the list sorted
 
+  nhead 6, 7, 3, 8, 9, 9;
+      # ==> 3
+
+  nkeyhead { length $_ } qw(a ab aa aac b t uu uiyii)
+      # ==> 'a'
+
+=item - select the tail element from the list sorted
+
+  tail qw(a ab aa aac b t uu uiyii);
+      # ==> 'uu'
+
+  nkeytail { length $_ } qw(a ab aa aac b t uu uiyii)
+      # ==> 'uiyii'
+
+=item - select the element at position n from the list sorted
+
+  atpos 3, qw(a ab aa aac b t uu uiyii);
+      # ==> 'ab';
+
+  rnkeyatpos { abs $_ } 2 => -0.3, 1.1, 4, 0.1, 0.9, -2;
+      # ==> 1.1
+
+  rnkeyatpos { abs $_ } -2 => -0.3, 1.1, 4, 0.1, 0.9, -2;
+      # ==> -0.3
+
+Note that for the atpos set of functions indexes start at zero.
 
 =back
 
@@ -226,6 +308,18 @@ The full list of available functions is:
   keytopsort lkeytopsort nkeytopsort ikeytopsort ukeytopsort
   rkeytopsort rlkeytopsort rnkeytopsort rikeytopsort rukeytopsort
 
+  head lhead nhead ihead uhead rhead rlhead rnhead rihead ruhead
+  keyhead lkeyhead nkeyhead ikeyhead ukeyhead rkeyhead rlkeyhead
+  rnkeyhead rikeyhead rukeyhead
+
+  tail ltail ntail itail utail rtail rltail rntail ritail rutail
+  keytail lkeytail nkeytail ikeytail ukeytail rkeytail rlkeytail
+  rnkeytail rikeytail rukeytail
+
+  atpos latpos natpos iatpos uatpos ratpos rlatpos rnatpos riatpos
+  ruatpos keyatpos lkeyatpos nkeyatpos ikeyatpos ukeyatpos rkeyatpos
+  rlkeyatpos rnkeyatpos rikeyatpos rukeyatpos
+
 =head1 SEE ALSO
 
 L<Sort::Key>, L<perlfunc/sort>.
@@ -235,7 +329,7 @@ L<http://en.wikipedia.org/wiki/Selection_algorithm>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2006-2007 by Salvador FandiE<ntilde>o
+Copyright (C) 2006-2008 by Salvador FandiE<ntilde>o
 (sfandino@yahoo.com).
 
 This library is free software; you can redistribute it and/or modify

@@ -3,12 +3,15 @@
 use strict;
 use warnings;
 
-use Test::More tests => 783;
+use Test::More tests => 790;
 
 use Sort::Key::Top qw(nkeytop top rnkeytop topsort
                       nkeytopsort rnkeytopsort
                       ikeytopsort rikeytopsort
-                      ukeytopsort rukeytopsort);
+                      ukeytopsort rukeytopsort
+                      nhead nkeyhead tail nkeytail
+                      atpos rnkeyatpos
+                     );
 
 
 my @top;
@@ -119,5 +122,12 @@ for my $n (0, 1, 2, 3, 4, 10, 16, 20, 50, 100, 200, 500, 900, 990,
 
   is(scalar(rukeytopsort { length $_ } $n => @data),
      $rvn, "scalar rukeytopsort ($n)");
-
 }
+
+is(nhead(6, 7, 3, 8, 9, 9), 3, "nhead");
+is((nkeyhead { length $_ } qw(a ab aa aac b t uu uiyii)), 'a', 'nkeyhead');
+is(tail(qw(a ab aa aac b t uu uiyii)), 'uu', 'tail');
+is((nkeytail { length $_ } qw(a ab aa aac b t uu uiyii)), 'uiyii', 'nkeytail');
+is(atpos(3, qw(a ab aa aac b t uu uiyii)), 'ab', 'atpos');
+is((rnkeyatpos { abs $_ } 2 => -0.3, 1.1, 4, 0.1, 0.9, -2), 1.1, 'rnkeyatpos');
+is((rnkeyatpos { abs $_ } -2 => -0.3, 1.1, 4, 0.1, 0.9, -2), -0.3, 'rnkeyatpos neg');
