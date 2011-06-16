@@ -82,7 +82,9 @@ for my $n (0, 1, 2, 3, 4, 10, 16, 20, 50, 100, 200, 500, 900, 990,
   my @rixs = sort { length($data[$b]) <=> length($data[$a]) or $a <=> $b } 0 .. $#data;
   my @rsorted = @data[@rixs];
 
-  is_deeply([topsort $n => @data], [(sort @data)[$min..$max]], "topsort ($n)");
+
+  is_deeply([topsort $n => @data], [(sort @data)[$min..$max]], "topsort ($n)")
+      or diag ("data: @data, min: $min, max: $max");
 
   is_deeply([nkeytopsort { length $_ } $n => @data],
             [ (@sorted)[$min..$max]], "nkeytopsort ($n)");

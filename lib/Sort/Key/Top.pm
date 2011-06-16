@@ -28,26 +28,46 @@ our @EXPORT_OK = qw( top
                      rnkeytop
                      rikeytop
                      rukeytop
-                     split
-                     lsplit
-                     nsplit
-                     isplit
-                     usplit
-                     rsplit
-                     rlsplit
-                     rnsplit
-                     risplit
-                     rusplit
-                     keysplit
-                     lkeysplit
-                     nkeysplit
-                     ikeysplit
-                     ukeysplit
-                     rkeysplit
-                     rlkeysplit
-                     rnkeysplit
-                     rikeysplit
-                     rukeysplit
+                     part
+                     lpart
+                     npart
+                     ipart
+                     upart
+                     rpart
+                     rlpart
+                     rnpart
+                     ripart
+                     rupart
+                     keypart
+                     lkeypart
+                     nkeypart
+                     ikeypart
+                     ukeypart
+                     rkeypart
+                     rlkeypart
+                     rnkeypart
+                     rikeypart
+                     rukeypart
+                     partref
+                     lpartref
+                     npartref
+                     ipartref
+                     upartref
+                     rpartref
+                     rlpartref
+                     rnpartref
+                     ripartref
+                     rupartref
+                     keypartref
+                     lkeypartref
+                     nkeypartref
+                     ikeypartref
+                     ukeypartref
+                     rkeypartref
+                     rlkeypartref
+                     rnkeypartref
+                     rikeypartref
+                     rukeypartref
                      topsort
                      ltopsort
                      ntopsort
@@ -311,15 +331,22 @@ numerical descending order but converting the keys to unsigned integers first
   rnkeyatpos { abs $_ } -2 => -0.3, 1.1, 4, 0.1, 0.9, -2;
       # ==> -0.3
 
-=item - return a list composed by the elements below and at the given
-position followed by the elements above.
-
-  ikeysplit { length $_ } 3 => qw(a bbbb cc ddddd g fd);
-      # ==> a cc g bbbb ddddd fd
-
 Note that for the atpos set of functions indexes start at zero.
 
+=item - return a list composed by the elements with the first n
+ordered keys and then the remaining ones.
+
+  ikeypart { length $_ } 3 => qw(a bbbb cc ddddd g fd);
+      # ==> a cc g bbbb ddddd fd
+
+=item - return two arrays references, the first array containing the
+elements with the first n ordered keys and the second with the rest.
+
+  keypartref { length $_ } 3 => qw(a bbbb cc ddddd g fd);
+      # ==> [a cc g] [bbbb ddddd fd]
+
 =back
+
 
 The full list of available functions is:
 
@@ -346,11 +373,11 @@ The full list of available functions is:
   ruatpos keyatpos lkeyatpos nkeyatpos ikeyatpos ukeyatpos rkeyatpos
   rlkeyatpos rnkeyatpos rikeyatpos rukeyatpos
 
-  split lsplit nsplit isplit usplit rsplit rlsplit rnsplit risplit
-  rusplit
+  part lpart npart ipart upart rpart rlpart rnpart ripart
+  rupart
 
-  keysplit lkeysplit nkeysplit ikeysplit ukeysplit rkeysplit
-  rlkeysplit rnkeysplit rikeysplit rukeysplit
+  keypart lkeypart nkeypart ikeypart ukeypart rkeypart
+  rlkeypart rnkeypart rikeypart rukeypart
 
 
 =head1 SEE ALSO

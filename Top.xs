@@ -12,9 +12,10 @@
 #include "sort.h"
 #endif
 
-#define MODE_TOP   0
-#define MODE_SORT  1
-#define MODE_SPLIT 2
+#define MODE_TOP      0
+#define MODE_SORT     1
+#define MODE_PART    2
+#define MODE_PARTREF 3
 
 #define INSERTION_CUTOFF 6
 
@@ -136,27 +137,19 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
     int deep = (((mode == MODE_SORT) && !warray) ? 1 : 0);
     int dir = 1;
 
-    if (top == 0)
-        return 0;
-
     if (top < 0) {
         dir = -1;
         top = -top;
     }
 
     if (top > items) {
-        if (warray)
+        if (warray || (mode == MODE_PARTREF))
             top = items;
         else
             return 0;
     }
 
-    if (items == 1) {
-        ST(0) = ST(offset);
-        return 1;
-    }
-
-    if ((top < items) || (mode == MODE_SORT)) {
+    if (top && (items > 1) && ((top < items) || (mode == MODE_SORT))) {
         dSP;
         void *keys;
         void **ixkeys;
@@ -271,19 +264,21 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
             }
         }
 
+        if ((mode == MODE_SORT) && (top == items) && !warray) {
+            top = 1;
+            dir = -dir;
+        }
+
         if (top == 1) {
-            I32 min = 0;
-            I32 i;
-            for (i = 1; i < items; i++) {
-                if (cmp(aTHX_ ixkeys[min], ixkeys[i]) == dir)
-                    min = i;
-            }
-            ST(0) = ST(offset + min);
+            I32 p = 0, i;
+            for (i = 1; i < items; i++)
+                if (cmp(aTHX_ ixkeys[p], ixkeys[i]) == dir)
+                    p = i;
+            ST(0) = ST(offset + p);
             return 1;
         }
-        
-        if (top < items || deep) {
 
+        if (top < items) {
             if (top <= INSERTION_CUTOFF) {
                 I32 n, i, j;
                 void *current;
@@ -291,21 +286,6 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
                 for (n = i = 1; i < items; i++) {
                     current = ixkeys[i];
                     for (j = n; j; j--) {
-                        /*
-                          printf ("n: %d, i: %d, j: %d, cmp: %d, dir: %d, key: %s, current: %s\n",
-                          n, i, j,
-                          cmp(aTHX_ ixkeys[j - 1], current), dir,
-                          SvPV_nolen(*((SV**)(ixkeys[j - 1]))),
-                          SvPV_nolen(*((SV**)current)) );
-                          {
-                          int k;
-                          for (k = 0; k < items; k++) {
-                          printf("%s ", (k == j ? "*" : SvPV_nolen(*((SV**)(ixkeys[k])))));
-                          }
-                          printf("\n"); fflush(stdout);
-                          
-                          }
-                        */
                         if (cmp(aTHX_ ixkeys[j - 1], current) != dir)
                             break;
 
@@ -318,17 +298,6 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
                             n++;
                     }
                 }
-
-                /* if (dir < 0) {
-                    I32 i, j;
-                    for (i = 0, j = top - 1; i < j; i++, j--) {
-                        void *swap = ixkeys[i];
-                        ixkeys[i] = ixkeys[j];
-                        ixkeys[j] = swap;
-                    }
-                }
-                */
-
                 if (dir == 1)
                     already_sorted = 1;
                 
@@ -341,16 +310,8 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
                     I32 pivot = (left + right) >> 1;
                     void *pivot_value = ixkeys[pivot];
                     I32 i;
-
                     SV *out = sv_newmortal();
-                    /*
-                      sv_catpvf(out, "left: %d, right: %d, pivot: %d, pivot_value: %s =>", left, right, pivot, SvPV_nolen(*(SV**)pivot_value));
-                      for (i = 0; i< items; i++) {
-                      sv_catpvf(out, " %s", SvPV_nolen(*(SV**)(ixkeys[i])));
-                      }
-                      fprintf(stderr, "%s\n", SvPV_nolen(out));
-                    */
-                
+
                     ixkeys[pivot] = ixkeys[right];
                     for (pivot = i = left; i < right; i++) {
                         if (cmp(aTHX_ ixkeys[i], pivot_value) != dir) {
@@ -373,13 +334,11 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
                     }
                     else {
                         if (pivot >= top) {
-                            /* fprintf(stderr, "%d >= %d\n", pivot, top); */
                             right = pivot - 1;
                             if (right < top)
                                 break;
                         }
                         if (pivot <= top) {
-                            /* fprintf(stderr, "%d <= %d\n", pivot, top); */
                             left = pivot + 1;
                             if (left >= top)
                                 break;
@@ -387,81 +346,107 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
                     }
                 }
             }
-            if (mode != MODE_SORT) {
-                if (warray) {
-                    I32 to, i;
-                    unsigned char *bitmap;
-                    Newxz(bitmap, (items / 8) + 1, unsigned char);
-                    SAVEFREEPV(bitmap);
-                    for (i = 0; i < top; i++) {
-                        I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
-                        bitmap[j / 8] |= (1 << (j & 7));
-                    }
-                    if (mode == MODE_SPLIT) {
-                        I32 j;
-                        SV **tail = (SV**)ixkeys;
-                        for (to = j = i = 0; i < items; i++) {
-                            if ((bitmap[i / 8] & (1 << (i & 7))) && (to < top)) {
-                                ST(to++) = ST(i+offset);
-                            }
-                            else {
-                                tail[j++] = ST(i+offset);
-                            }
-                        }
-                        while (to < items)
-                            ST(to++) = *(tail++);
-                        return items;
-                    }
-                    else {
-                        for (to = i = 0; to < top; i++) {
-                            if (bitmap[i / 8] & (1 << (i & 7))) {
-                                /* fprintf(stderr, "to: %d => i: %d\n", to, i); */
-                                ST(to++) = ST(i+offset);
-                            }
-                        }
-                        return top;
-                    }
+        }
+        if (warray) {
+            if (mode == MODE_SORT) {
+                I32 i;
+                sortsv((SV**)ixkeys, top, (SVCOMPARE_t)cmp);
+                for(i = 0; i < top; i++) {
+                    I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
+                    ixkeys[i] = ST(j + offset);
                 }
-                else {
-                    I32 last, i;
-                    for (i = 0, last = 0; i < top; i++) {
-                        I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
-                        if (j > last)
-                            last = j;
+                for(i = 0; i < top; i++)
+                    ST(i) = (SV*)ixkeys[i];
+                return top;
+            }
+            else {
+                I32 i;
+                unsigned char *bitmap;
+                Newxz(bitmap, (items / 8) + 1, unsigned char);
+                SAVEFREEPV(bitmap);
+                /* this bitmap hack is used to ensure the stability of the operation */
+                for (i = 0; i < top; i++) {
+                    I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
+                    bitmap[j / 8] |= (1 << (j & 7));
+                }
+
+                if (mode == MODE_PART) {
+                    I32 j, to;
+                    SV **tail = (SV**)ixkeys;
+                    for (to = j = i = 0; i < items; i++) {
+                        if (bitmap[i / 8] & (1 << (i & 7)))
+                            ST(to++) = ST(i+offset);
+                        else
+                            tail[j++] = ST(i+offset);
                     }
-                    ST(0) = ST(offset + last);
-                    return 1;
+                    while (to < items)
+                        ST(to++) = *(tail++);
+                    return items;
+                }
+                else if (mode == MODE_PARTREF) {
+                    AV *a = newAV();
+                    AV *b = newAV();
+                    SV *arv = sv_2mortal(newRV_noinc((SV*)a));
+                    SV *brv = sv_2mortal(newRV_noinc((SV*)b));
+                    av_extend(a, top);
+                    av_extend(b, items - top);
+                    for (i = 0; i < items; i++)
+                        av_push(((bitmap[i / 8] & (1 << (i & 7))) ? a : b), newSVsv(ST(i+offset)));
+                    ST(0) = arv;
+                    ST(1) = brv;
+                    return 2;
+                }
+                else { /* MODE_TOP */
+                    I32 to;
+                    for (to = i = 0; to < top; i++) {
+                        if (bitmap[i / 8] & (1 << (i & 7)))
+                            ST(to++) = ST(i+offset);
+                    }
+                    return top;
                 }
             }
         }
-
-        if (mode == MODE_SORT) {
-            if (warray) {
-                I32 i;
-                if (!already_sorted)
-                    sortsv((SV**)ixkeys, top, (SVCOMPARE_t)cmp);
-                for(i = 0; i < top; i++) {
-                    I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
-                    /* fprintf(stderr, "i: %d => j: %d\n", i, j); */
-                    ixkeys[i] = ST(j + offset);
-                }
-                for(i = 0; i < top; i++) {
-                    ST(i) = (SV*)ixkeys[i];
-                }
-            }
-            else {
+        else { /* !warray */
+            if (mode == MODE_SORT) {
                 I32 j = ( ((char*)(ixkeys[top - 1])) - ((char*)keys) ) >> lsize;
                 ST(0) = ST(offset + j);
                 return 1;
             }
+            else {
+                I32 last, i;
+                for (i = 0, last = 0; i < top; i++) {
+                    I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
+                    if (j > last)
+                        last = j;
+                }
+                ST(0) = ST(offset + last);
+                return 1;
+            }
         }
-        return top;
+    }
+    else if (mode == MODE_PARTREF) {
+        I32 i;
+        AV *a = newAV();
+        SV *arv = sv_2mortal(newRV_noinc((SV*)a));
+        SV *brv = sv_2mortal(newRV_noinc((SV*)newAV()));
+        av_extend(a, top);
+        for (i = 0; i < top; i++)
+            av_push(a, newSVsv(ST(i+offset)));
+        if (top) {
+            ST(0) = arv;
+            ST(1) = brv;
+        }
+        else {
+            ST(0) = brv;
+            ST(1) = arv;
+        }
+        return 2;
     }
     else {
         I32 i;
         for (i = 0; i < top; i++)
             ST(i) = ST(i + offset);
-        return items;
+        return top;
     }
 }
 
@@ -499,39 +484,71 @@ ALIAS:
         ritop = 131
         rutop = 132
 PPCODE:
-        XSRETURN(_keytop(aTHX_ ix, 0, top, 0, 1, items-1, ax, (GIMME_V == G_ARRAY)));
+        XSRETURN(_keytop(aTHX_ ix, 0, top, 0, MODE_SORT, items-1, ax, (GIMME_V == G_ARRAY)));
 
 void
-keysplit(SV *keygen, IV top, ...)
+keypart(SV *keygen, IV top, ...)
 PROTOTYPE: &@
 ALIAS:
-        lkeysplit = 1
-        nkeysplit = 2
-        ikeysplit = 3
-        ukeysplit = 4
-        rkeysplit = 128
-        rlkeysplit = 129
-        rnkeysplit = 130
-        rikeysplit = 131
-        rukeysplit = 132
+        lkeypart = 1
+        nkeypart = 2
+        ikeypart = 3
+        ukeypart = 4
+        rkeypart = 128
+        rlkeypart = 129
+        rnkeypart = 130
+        rikeypart = 131
+        rukeypart = 132
 PPCODE:
-        XSRETURN(_keytop(aTHX_ ix, keygen, top, MODE_SPLIT, 2, items-2, ax, (GIMME_V == G_ARRAY)));
+        XSRETURN(_keytop(aTHX_ ix, keygen, top, MODE_PART, 2, items-2, ax, (GIMME_V == G_ARRAY)));
 
 void
-split(IV top, ...)
+part(IV top, ...)
 PROTOTYPE: @
 ALIAS:
-        lsplit = 1
-        nsplit = 2
-        isplit = 3
-        usplit = 4
-        rsplit = 128
-        rlsplit = 129
-        rnsplit = 130
-        risplit = 131
-        rusplit = 132
+        lpart = 1
+        npart = 2
+        ipart = 3
+        upart = 4
+        rpart = 128
+        rlpart = 129
+        rnpart = 130
+        ripart = 131
+        rupart = 132
 PPCODE:
-        XSRETURN(_keytop(aTHX_ ix, 0, top, MODE_SPLIT, 1, items-1, ax, (GIMME_V == G_ARRAY)));
+        XSRETURN(_keytop(aTHX_ ix, 0, top, MODE_PART, 1, items-1, ax, (GIMME_V == G_ARRAY)));
+
+void
+keypartref(SV *keygen, IV top, ...)
+PROTOTYPE: &@
+ALIAS:
+        lkeypartref = 1
+        nkeypartref = 2
+        ikeypartref = 3
+        ukeypartref = 4
+        rkeypartref = 128
+        rlkeypartref = 129
+        rnkeypartref = 130
+        rikeypartref = 131
+        rukeypartref = 132
+PPCODE:
+        XSRETURN(_keytop(aTHX_ ix, keygen, top, MODE_PARTREF, 2, items-2, ax, (GIMME_V == G_ARRAY)));
+
+void
+partref(IV top, ...)
+PROTOTYPE: @
+ALIAS:
+        lpartref = 1
+        npartref = 2
+        ipartref = 3
+        upartref = 4
+        rpartref = 128
+        rlpartref = 129
+        rnpartref = 130
+        ripartref = 131
+        rupartref = 132
+PPCODE:
+        XSRETURN(_keytop(aTHX_ ix, 0, top, MODE_PARTREF, 1, items-1, ax, (GIMME_V == G_ARRAY)));
 
 void
 keytopsort(SV *keygen, IV top, ...)
