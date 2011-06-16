@@ -12,6 +12,10 @@
 #include "sort.h"
 #endif
 
+#define MODE_TOP   0
+#define MODE_SORT  1
+#define MODE_SPLIT 2
+
 #define INSERTION_CUTOFF 6
 
 static I32
@@ -128,8 +132,8 @@ typedef I32 (*COMPARE_t)(pTHX_ void*, void*);
 typedef void (*STORE_t)(pTHX_ SV*, void*);
 
 I32
-_keytop(pTHX_ IV type, SV *keygen, IV top, int sort, I32 offset, IV items, I32 ax, I32 warray) {
-    int deep = (sort && !warray) ? 1 : 0;
+_keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 ax, I32 warray) {
+    int deep = (((mode == MODE_SORT) && !warray) ? 1 : 0);
     int dir = 1;
 
     if (top == 0)
@@ -152,7 +156,7 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int sort, I32 offset, IV items, I32 a
         return 1;
     }
 
-    if (top < items || sort) {
+    if ((top < items) || (mode == MODE_SORT)) {
         dSP;
         void *keys;
         void **ixkeys;
@@ -383,7 +387,7 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int sort, I32 offset, IV items, I32 a
                     }
                 }
             }
-            if (!sort) {
+            if (mode != MODE_SORT) {
                 if (warray) {
                     I32 to, i;
                     unsigned char *bitmap;
@@ -393,13 +397,30 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int sort, I32 offset, IV items, I32 a
                         I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
                         bitmap[j / 8] |= (1 << (j & 7));
                     }
-                    for (to = i = 0; to < top; i++) {
-                        if (bitmap[i / 8] & (1 << (i & 7))) {
-                            /* fprintf(stderr, "to: %d => i: %d\n", to, i); */
-                            ST(to++) = ST(i+offset);
+                    if (mode == MODE_SPLIT) {
+                        I32 j;
+                        SV **tail = (SV**)ixkeys;
+                        for (to = j = i = 0; i < items; i++) {
+                            if ((bitmap[i / 8] & (1 << (i & 7))) && (to < top)) {
+                                ST(to++) = ST(i+offset);
+                            }
+                            else {
+                                tail[j++] = ST(i+offset);
+                            }
                         }
+                        while (to < items)
+                            ST(to++) = *(tail++);
+                        return items;
                     }
-                    return top;
+                    else {
+                        for (to = i = 0; to < top; i++) {
+                            if (bitmap[i / 8] & (1 << (i & 7))) {
+                                /* fprintf(stderr, "to: %d => i: %d\n", to, i); */
+                                ST(to++) = ST(i+offset);
+                            }
+                        }
+                        return top;
+                    }
                 }
                 else {
                     I32 last, i;
@@ -414,7 +435,7 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int sort, I32 offset, IV items, I32 a
             }
         }
 
-        if (sort) {
+        if (mode == MODE_SORT) {
             if (warray) {
                 I32 i;
                 if (!already_sorted)
@@ -481,6 +502,38 @@ PPCODE:
         XSRETURN(_keytop(aTHX_ ix, 0, top, 0, 1, items-1, ax, (GIMME_V == G_ARRAY)));
 
 void
+keysplit(SV *keygen, IV top, ...)
+PROTOTYPE: &@
+ALIAS:
+        lkeysplit = 1
+        nkeysplit = 2
+        ikeysplit = 3
+        ukeysplit = 4
+        rkeysplit = 128
+        rlkeysplit = 129
+        rnkeysplit = 130
+        rikeysplit = 131
+        rukeysplit = 132
+PPCODE:
+        XSRETURN(_keytop(aTHX_ ix, keygen, top, MODE_SPLIT, 2, items-2, ax, (GIMME_V == G_ARRAY)));
+
+void
+split(IV top, ...)
+PROTOTYPE: @
+ALIAS:
+        lsplit = 1
+        nsplit = 2
+        isplit = 3
+        usplit = 4
+        rsplit = 128
+        rlsplit = 129
+        rnsplit = 130
+        risplit = 131
+        rusplit = 132
+PPCODE:
+        XSRETURN(_keytop(aTHX_ ix, 0, top, MODE_SPLIT, 1, items-1, ax, (GIMME_V == G_ARRAY)));
+
+void
 keytopsort(SV *keygen, IV top, ...)
 PROTOTYPE: &@
 ALIAS:
@@ -494,7 +547,7 @@ ALIAS:
         rikeytopsort = 131
         rukeytopsort = 132
 PPCODE:
-        XSRETURN(_keytop(aTHX_ ix, keygen, top, 1, 2, items-2, ax, (GIMME_V == G_ARRAY)));
+        XSRETURN(_keytop(aTHX_ ix, keygen, top, MODE_SORT, 2, items-2, ax, (GIMME_V == G_ARRAY)));
 
 void
 topsort(IV top, ...)
@@ -510,7 +563,7 @@ ALIAS:
         ritopsort = 131
         rutopsort = 132
 PPCODE:
-        XSRETURN(_keytop(aTHX_ ix, 0, top, 1, 1, items-1, ax, (GIMME_V == G_ARRAY)));
+        XSRETURN(_keytop(aTHX_ ix, 0, top, MODE_SORT, 1, items-1, ax, (GIMME_V == G_ARRAY)));
 
 void
 keyhead(SV *keygen, ...)

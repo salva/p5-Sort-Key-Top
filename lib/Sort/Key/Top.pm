@@ -1,6 +1,6 @@
 package Sort::Key::Top;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 use strict;
 use warnings;
@@ -28,6 +28,26 @@ our @EXPORT_OK = qw( top
                      rnkeytop
                      rikeytop
                      rukeytop
+                     split
+                     lsplit
+                     nsplit
+                     isplit
+                     usplit
+                     rsplit
+                     rlsplit
+                     rnsplit
+                     risplit
+                     rusplit
+                     keysplit
+                     lkeysplit
+                     nkeysplit
+                     ikeysplit
+                     ukeysplit
+                     rkeysplit
+                     rlkeysplit
+                     rnkeysplit
+                     rikeysplit
+                     rukeysplit
                      topsort
                      ltopsort
                      ntopsort
@@ -291,6 +311,12 @@ numerical descending order but converting the keys to unsigned integers first
   rnkeyatpos { abs $_ } -2 => -0.3, 1.1, 4, 0.1, 0.9, -2;
       # ==> -0.3
 
+=item - return a list composed by the elements below and at the given
+position followed by the elements above.
+
+  ikeysplit { length $_ } 3 => qw(a bbbb cc ddddd g fd);
+      # ==> a cc g bbbb ddddd fd
+
 Note that for the atpos set of functions indexes start at zero.
 
 =back
@@ -320,6 +346,13 @@ The full list of available functions is:
   ruatpos keyatpos lkeyatpos nkeyatpos ikeyatpos ukeyatpos rkeyatpos
   rlkeyatpos rnkeyatpos rikeyatpos rukeyatpos
 
+  split lsplit nsplit isplit usplit rsplit rlsplit rnsplit risplit
+  rusplit
+
+  keysplit lkeysplit nkeysplit ikeysplit ukeysplit rkeysplit
+  rlkeysplit rnkeysplit rikeysplit rukeysplit
+
+
 =head1 SEE ALSO
 
 L<Sort::Key>, L<perlfunc/sort>.
@@ -329,7 +362,7 @@ L<http://en.wikipedia.org/wiki/Selection_algorithm>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2006-2008 by Salvador FandiE<ntilde>o
+Copyright (C) 2006-2008, 2011 by Salvador FandiE<ntilde>o
 (sfandino@yahoo.com).
 
 This library is free software; you can redistribute it and/or modify
