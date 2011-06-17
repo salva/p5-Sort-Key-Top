@@ -269,7 +269,7 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
             dir = -dir;
         }
 
-        if (top == 1) {
+        if ((top == 1) && (mode != MODE_PART) && (mode != MODE_PARTREF)) {
             I32 p = 0, i;
             for (i = 1; i < items; i++)
                 if (cmp(aTHX_ ixkeys[p], ixkeys[i]) == dir)
@@ -369,8 +369,9 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
                     I32 j = ( ((char*)(ixkeys[i])) - ((char*)keys) ) >> lsize;
                     bitmap[j / 8] |= (1 << (j & 7));
                 }
-
-                if (mode == MODE_PART) {
+                switch (mode) {
+                case MODE_PART:
+                {
                     I32 j, to;
                     SV **tail = (SV**)ixkeys;
                     for (to = j = i = 0; i < items; i++) {
@@ -383,7 +384,8 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
                         ST(to++) = *(tail++);
                     return items;
                 }
-                else if (mode == MODE_PARTREF) {
+                case MODE_PARTREF:
+                {
                     AV *a = newAV();
                     AV *b = newAV();
                     SV *arv = sv_2mortal(newRV_noinc((SV*)a));
@@ -396,13 +398,17 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
                     ST(1) = brv;
                     return 2;
                 }
-                else { /* MODE_TOP */
+                case MODE_TOP:
+                {
                     I32 to;
                     for (to = i = 0; to < top; i++) {
                         if (bitmap[i / 8] & (1 << (i & 7)))
                             ST(to++) = ST(i+offset);
                     }
                     return top;
+                }
+                default:
+                    Perl_croak(aTHX_ "internal error");
                 }
             }
         }

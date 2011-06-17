@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 790;
+use Test::More tests => 791;
 
 use Sort::Key::Top qw(nkeytop top rnkeytop topsort
                       nkeytopsort rnkeytopsort
@@ -11,6 +11,7 @@ use Sort::Key::Top qw(nkeytop top rnkeytop topsort
                       ukeytopsort rukeytopsort
                       nhead nkeyhead tail nkeytail
                       atpos rnkeyatpos
+                      nkeypartref
                      );
 
 
@@ -46,6 +47,7 @@ is(scalar(topsort 5 => qw(a b ab t uu g h aa aac)), q(b), "scalar topsort 1");
 
 is(scalar(rnkeytopsort { length $_ } 3 => qw(a ab aa aac b t uu g h)), q(aa), "scalar rnkeytopsort 1");
 
+is_deeply([nkeypartref { $_ * $_ } 1 => (760, 617, -836)], [[617], [760, -836]], "nkeypartref");
 
 my @data = map { join ('', map { ('a'..'f')[rand 6] } 0..(3 + rand  6)) } 0..1000;
 
