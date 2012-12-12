@@ -384,12 +384,15 @@ The full list of available functions is:
 
 L<Sort::Key>, L<perlfunc/sort>.
 
+L<Sort::Key::Top::PP> by Toby Inkster, provides a subset of the API of
+Sort::Key::Top and is written in pure Perl.
+
 The Wikipedia article about selection algorithms
 L<http://en.wikipedia.org/wiki/Selection_algorithm>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2006-2008, 2011 by Salvador FandiE<ntilde>o
+Copyright (C) 2006-2008, 2011, 2012 by Salvador FandiE<ntilde>o
 (sfandino@yahoo.com).
 
 This library is free software; you can redistribute it and/or modify
