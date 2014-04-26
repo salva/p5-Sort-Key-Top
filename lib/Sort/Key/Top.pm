@@ -1,6 +1,6 @@
 package Sort::Key::Top;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 use strict;
 use warnings;
@@ -150,6 +150,11 @@ our @EXPORT_OK = qw( top
                      rukeytail
  );
 
+for ((@EXPORT_OK)) {
+    my $slot = $_;
+    $slot =~ s/key/slot/ and
+        push @EXPORT_OK, $slot;
+}
 
 require XSLoader;
 XSLoader::load('Sort::Key::Top', $VERSION);
@@ -240,12 +245,16 @@ Variations allow to:
   topsort 5 => qw(a b ab t uu g h aa aac);
      # ==> a aa aac ab b
 
+=item - use an array or hash index instead of a subroutine to extract
+the key
+
+  slottop 0, 2, [4], [1], [3], [2], [4];
+     # ==> [1], [2]
 
 =item - return the selected values in the original order
 
   top 5 => qw(a b ab t uu g h aa aac);
      # ==> a b ab aa aac
-
 
 =item - use a different ordering
 
@@ -355,29 +364,51 @@ The full list of available functions is:
   keytop lkeytop nkeytop ikeytop ukeytop rkeytop rlkeytop rnkeytop
   rikeytop rukeytop
 
+  slottop lslottop nslottop islottop uslottop rslottop rlslottop rnslottop
+  rislottop ruslottop
+
   topsort ltopsort ntopsort itopsort utopsort rtopsort rltopsort
   rntopsort ritopsort rutopsort
 
   keytopsort lkeytopsort nkeytopsort ikeytopsort ukeytopsort
   rkeytopsort rlkeytopsort rnkeytopsort rikeytopsort rukeytopsort
 
+  slottopsort lslottopsort nslottopsort islottopsort uslottopsort
+  rslottopsort rlslottopsort rnslottopsort rislottopsort ruslottopsort
+
   head lhead nhead ihead uhead rhead rlhead rnhead rihead ruhead
+
   keyhead lkeyhead nkeyhead ikeyhead ukeyhead rkeyhead rlkeyhead
   rnkeyhead rikeyhead rukeyhead
 
+  slothead lslothead nslothead islothead uslothead rslothead rlslothead
+  rnslothead rislothead ruslothead
+
   tail ltail ntail itail utail rtail rltail rntail ritail rutail
+
   keytail lkeytail nkeytail ikeytail ukeytail rkeytail rlkeytail
   rnkeytail rikeytail rukeytail
 
+  slottail lslottail nslottail islottail uslottail rslottail rlslottail
+  rnslottail rislottail ruslottail
+
   atpos latpos natpos iatpos uatpos ratpos rlatpos rnatpos riatpos
-  ruatpos keyatpos lkeyatpos nkeyatpos ikeyatpos ukeyatpos rkeyatpos
+  ruatpos
+
+  keyatpos lkeyatpos nkeyatpos ikeyatpos ukeyatpos rkeyatpos
   rlkeyatpos rnkeyatpos rikeyatpos rukeyatpos
+
+  slotatpos lslotatpos nslotatpos islotatpos uslotatpos rslotatpos
+  rlslotatpos rnslotatpos rislotatpos ruslotatpos
 
   part lpart npart ipart upart rpart rlpart rnpart ripart
   rupart
 
   keypart lkeypart nkeypart ikeypart ukeypart rkeypart
   rlkeypart rnkeypart rikeypart rukeypart
+
+  slotpart lslotpart nslotpart islotpart uslotpart rslotpart
+  rlslotpart rnslotpart rislotpart ruslotpart
 
 
 =head1 SEE ALSO
@@ -392,7 +423,7 @@ L<http://en.wikipedia.org/wiki/Selection_algorithm>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2006-2008, 2011, 2012 by Salvador FandiE<ntilde>o
+Copyright (C) 2006-2008, 2011, 2012, 2014 by Salvador FandiE<ntilde>o
 (sfandino@yahoo.com).
 
 This library is free software; you can redistribute it and/or modify

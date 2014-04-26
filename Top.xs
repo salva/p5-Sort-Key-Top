@@ -221,36 +221,66 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
 	    store = &u_store;
 	    break;
         default:
-            croak("unsupported type %d", type);
+            croak("unsupported type %d", (int)type);
         }
         Newx(ixkeys, items, void*);
         SAVEFREEPV(ixkeys);
         if (keygen) {
-            I32 i;
-            old_defsv = DEFSV;
-            SAVE_DEFSV;
-            for (i = 0; i<items; i++) {
-                I32 count;
-                SV *current;
-                SV *result;
-                void *target;
-                ENTER;
-                SAVETMPS;
-                current = ST(i + offset);
-                DEFSV = current ? current : sv_newmortal();
-                PUSHMARK(SP);
-                PUTBACK;
-                count = call_sv(keygen, G_SCALAR);
-                SPAGAIN;
-                if (count != 1)
-                    croak("wrong number of results returned from key generation sub");
-                result = POPs;
-                ixkeys[i] = target = ((char*)keys) + (i << lsize);
-                (*store)(aTHX_ result, target);
-                FREETMPS;
-                LEAVE;
+            if (SvROK(keygen)) {
+                I32 i;
+                old_defsv = DEFSV;
+                SAVE_DEFSV;
+                for (i = 0; i<items; i++) {
+                    I32 count;
+                    SV *current;
+                    SV *result;
+                    void *target;
+                    ENTER;
+                    SAVETMPS;
+                    current = ST(i + offset);
+                    DEFSV = current ? current : sv_newmortal();
+                    PUSHMARK(SP);
+                    PUTBACK;
+                    count = call_sv(keygen, G_SCALAR);
+                    SPAGAIN;
+                    if (count != 1)
+                        croak("wrong number of results returned from key generation sub");
+                    result = POPs;
+                    ixkeys[i] = target = ((char*)keys) + (i << lsize);
+                    (*store)(aTHX_ result, target);
+                    FREETMPS;
+                    LEAVE;
+                }
+                DEFSV = old_defsv;
             }
-            DEFSV = old_defsv;
+            else {
+                int i;
+                for (i = 0; i < items; i++) {
+                    SV *current = ST(i + offset);
+                    if (current && SvROK(current)) {
+                        SV **resultp;
+                        void *target;
+
+                        SV *rv = (SV*)SvRV(current);
+                        if (SvTYPE(rv) == SVt_PVAV) {
+                            resultp = av_fetch((AV*)rv, SvIV(keygen), 0);
+                        }
+                        else if (SvTYPE(rv) == SVt_PVHV) {
+                            STRLEN len;
+                            char *pv = SvPV(keygen, len);
+                            resultp = hv_fetch((HV*)rv, pv, (SvUTF8(keygen) ? -len : len), 0);
+                        }
+                        else goto bad_ref;
+
+                        ixkeys[i] = target = ((char*)keys) + (i << lsize);
+                        (*store)(aTHX_ (resultp ? *resultp : &PL_sv_undef), target);
+                    }
+                    else {
+                    bad_ref:
+                        croak("argument at position %d is not an array or hash reference", (int)(i + items));
+                    }
+                }
+            }
         }
         else {
             I32 i;
@@ -456,6 +486,17 @@ _keytop(pTHX_ IV type, SV *keygen, IV top, int mode, I32 offset, IV items, I32 a
     }
 }
 
+static void
+check_keygen(pTHX_ SV *keygen) {
+    if (!(keygen && SvROK(keygen) && (SvTYPE(SvRV(keygen)) == SVt_PVCV)))
+        Perl_croak(aTHX_ "keygen argument is not a CODE reference");
+}
+
+static void
+check_slot(pTHX_ SV *slot) {
+    if (slot && SvROK(slot))
+        Perl_croak(aTHX_ "slot selector can not be a reference");
+}
 
 MODULE = Sort::Key::Top		PACKAGE = Sort::Key::Top		
 PROTOTYPES: ENABLE
@@ -474,6 +515,7 @@ ALIAS:
         rikeytop = 131
         rukeytop = 132
 PPCODE:
+        check_keygen(aTHX_ keygen);
         XSRETURN(_keytop(aTHX_ ix, keygen, top, 0, 2, items-2, ax, (GIMME_V == G_ARRAY)));
 
 void
@@ -506,6 +548,7 @@ ALIAS:
         rikeypart = 131
         rukeypart = 132
 PPCODE:
+        check_keygen(aTHX_ keygen);
         XSRETURN(_keytop(aTHX_ ix, keygen, top, MODE_PART, 2, items-2, ax, (GIMME_V == G_ARRAY)));
 
 void
@@ -538,6 +581,7 @@ ALIAS:
         rikeypartref = 131
         rukeypartref = 132
 PPCODE:
+        check_keygen(aTHX_ keygen);
         XSRETURN(_keytop(aTHX_ ix, keygen, top, MODE_PARTREF, 2, items-2, ax, (GIMME_V == G_ARRAY)));
 
 void
@@ -570,6 +614,7 @@ ALIAS:
         rikeytopsort = 131
         rukeytopsort = 132
 PPCODE:
+        check_keygen(aTHX_ keygen);
         XSRETURN(_keytop(aTHX_ ix, keygen, top, MODE_SORT, 2, items-2, ax, (GIMME_V == G_ARRAY)));
 
 void
@@ -602,6 +647,7 @@ ALIAS:
         rikeyhead = 131
         rukeyhead = 132
 PPCODE:
+        check_keygen(aTHX_ keygen);
         XSRETURN(_keytop(aTHX_ ix, keygen, 1, 0, 1, items-1, ax, 0));
 
 void
@@ -618,6 +664,7 @@ ALIAS:
         rikeytail = 131
         rukeytail = 132
 PPCODE:
+        check_keygen(aTHX_ keygen);
         XSRETURN(_keytop(aTHX_ ix, keygen, -1, 0, 1, items-1, ax, 0));
 
 void
@@ -666,6 +713,7 @@ ALIAS:
         rikeyatpos = 131
         rukeyatpos = 132
 PPCODE:
+        check_keygen(aTHX_ keygen);
         XSRETURN(_keytop(aTHX_ ix, keygen, (n < 0 ? n : n + 1), 1, 2, items-2, ax, 0));
 
 void
@@ -683,3 +731,122 @@ ALIAS:
         ruatpos = 132
 PPCODE:
         XSRETURN(_keytop(aTHX_ ix, 0, (n < 0 ? n : n + 1), 1, 1, items-1, ax, 0));
+
+void
+slottop(SV *slot, IV top, ...)
+PROTOTYPE: @
+ALIAS:
+        lslottop = 1
+        nslottop = 2
+        islottop = 3
+        uslottop = 4
+        rslottop = 128
+        rlslottop = 129
+        rnslottop = 130
+        rislottop = 131
+        ruslottop = 132
+PPCODE:
+        check_slot(aTHX_ slot);
+        XSRETURN(_keytop(aTHX_ ix, slot, top, 0, 2, items-2, ax, (GIMME_V == G_ARRAY)));
+
+void
+slotpart(SV *slot, IV top, ...)
+PROTOTYPE: @
+ALIAS:
+        lslotpart = 1
+        nslotpart = 2
+        islotpart = 3
+        uslotpart = 4
+        rslotpart = 128
+        rlslotpart = 129
+        rnslotpart = 130
+        rislotpart = 131
+        ruslotpart = 132
+PPCODE:
+        check_slot(aTHX_ slot);
+        XSRETURN(_keytop(aTHX_ ix, slot, top, MODE_PART, 2, items-2, ax, (GIMME_V == G_ARRAY)));
+
+void
+slotpartref(SV *slot, IV top, ...)
+PROTOTYPE: @
+ALIAS:
+        lslotpartref = 1
+        nslotpartref = 2
+        islotpartref = 3
+        uslotpartref = 4
+        rslotpartref = 128
+        rlslotpartref = 129
+        rnslotpartref = 130
+        rislotpartref = 131
+        ruslotpartref = 132
+PPCODE:
+        check_slot(aTHX_ slot);
+        XSRETURN(_keytop(aTHX_ ix, slot, top, MODE_PARTREF, 2, items-2, ax, (GIMME_V == G_ARRAY)));
+
+void
+slottopsort(SV *slot, IV top, ...)
+PROTOTYPE: @
+ALIAS:
+        lslottopsort = 1
+        nslottopsort = 2
+        islottopsort = 3
+        uslottopsort = 4
+        rslottopsort = 128
+        rlslottopsort = 129
+        rnslottopsort = 130
+        rislottopsort = 131
+        ruslottopsort = 132
+PPCODE:
+        check_slot(aTHX_ slot);
+        XSRETURN(_keytop(aTHX_ ix, slot, top, MODE_SORT, 2, items-2, ax, (GIMME_V == G_ARRAY)));
+
+void
+slothead(SV *slot, ...)
+PROTOTYPE: @
+ALIAS:
+        lslothead = 1
+        nslothead = 2
+        islothead = 3
+        uslothead = 4
+        rslothead = 128
+        rlslothead = 129
+        rnslothead = 130
+        rislothead = 131
+        ruslothead = 132
+PPCODE:
+        check_slot(aTHX_ slot);
+        XSRETURN(_keytop(aTHX_ ix, slot, 1, 0, 1, items-1, ax, 0));
+
+void
+slottail(SV *slot, ...)
+PROTOTYPE: @
+ALIAS:
+        lslottail = 1
+        nslottail = 2
+        islottail = 3
+        uslottail = 4
+        rslottail = 128
+        rlslottail = 129
+        rnslottail = 130
+        rislottail = 131
+        ruslottail = 132
+PPCODE:
+        check_slot(aTHX_ slot);
+        XSRETURN(_keytop(aTHX_ ix, slot, -1, 0, 1, items-1, ax, 0));
+
+void
+slotatpos(SV *slot, IV n, ...)
+PROTOTYPE: @
+ALIAS:
+        lslotatpos = 1
+        nslotatpos = 2
+        islotatpos = 3
+        uslotatpos = 4
+        rslotatpos = 128
+        rlslotatpos = 129
+        rnslotatpos = 130
+        rislotatpos = 131
+        ruslotatpos = 132
+PPCODE:
+        check_slot(aTHX_ slot);
+        XSRETURN(_keytop(aTHX_ ix, slot, (n < 0 ? n : n + 1), 1, 2, items-2, ax, 0));

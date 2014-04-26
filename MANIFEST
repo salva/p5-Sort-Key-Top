@@ -5,7 +5,6 @@ MANIFEST
 ppport.h
 README
 sort.h
-t/pods.t
 t/Sort-Key-Top.t
 Top.xs
 META.yml
