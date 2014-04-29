@@ -1,6 +1,6 @@
 package Sort::Key::Top;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 use strict;
 use warnings;
@@ -340,7 +340,7 @@ numerical descending order but converting the keys to unsigned integers first
   rnkeyatpos { abs $_ } -2 => -0.3, 1.1, 4, 0.1, 0.9, -2;
       # ==> -0.3
 
-Note that for the atpos set of functions indexes start at zero.
+Note that for the C<atpos> set of functions indexes start at zero.
 
 =item - return a list composed by the elements with the first n
 ordered keys and then the remaining ones.

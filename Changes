@@ -1,5 +1,8 @@
 Revision history for Perl extension Sort::Key::Top.
 
+0.08
+        - fix spelling errorso
+
 0.07  Apr 26, 2014
         - add slot variations
 
