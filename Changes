@@ -1,6 +1,7 @@
 Revision history for Perl extension Sort::Key::Top.
 
-0.08
+0.08  Apr 29, 2014
+        - workaround testing errors on perl 5.6
         - fix spelling errorso
 
 0.07  Apr 26, 2014
